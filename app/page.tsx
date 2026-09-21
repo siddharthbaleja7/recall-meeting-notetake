@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { meetings, type Meeting } from "@/lib/seed-data";
+import { speakerColor, speakerInitials } from "@/lib/speaker-colors";
 
 type DetailTab = "summary" | "transcript";
 type SummaryTemplate = "general" | "sales" | "standup";
@@ -9,18 +10,6 @@ type Theme = "dark" | "light";
 
 const formatDate = (date: string) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date));
 const formatDuration = (minutes: number) => minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
-
-// Muted, mid-toned hues (not the teal accent or amber flag) so speakers stay
-// scannable at a glance in an 8-person transcript, not just distinguishable
-// by reading the name text. Order is stable per meeting via participants[].
-const SPEAKER_PALETTE = ["#3E5C8A", "#8A3E52", "#6B7A3E", "#6B4C7A", "#A15C3B", "#4F5B6B", "#2E6F63", "#7A5A3E"];
-function speakerColor(meeting: Meeting, name: string) {
-  const index = meeting.participants.indexOf(name);
-  return SPEAKER_PALETTE[(index === -1 ? 0 : index) % SPEAKER_PALETTE.length];
-}
-function speakerInitials(name: string) {
-  return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
-}
 
 export default function Home() {
   const [selectedId, setSelectedId] = useState(meetings[0].id);
