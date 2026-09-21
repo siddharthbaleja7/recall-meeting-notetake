@@ -14,13 +14,25 @@
 **What this does NOT cover** — the recording only scrolled the public marketing and
 pricing pages. None of the logged-in product was shown.
 
+## Confirmed real (hands-on test call — see /recon/newwww1-5.png)
+- [x] Signup — real account, real sign-in screen (Google/Microsoft/SSO), not a
+      marketing mockup. `newwww5.png`.
+- [x] Notetaker joins a real call — a real "Test call" (4 min) landed in the
+      meetings list. `newwww4.png`.
+- [x] Transcript — real per-line transcript that matches what was actually said on
+      the call, with speaker label and timestamp. `newwww1.png`.
+- [x] AI summary — correctly identified the call as a system test from context
+      ("the participant's explicit mention of 'Fathom'"), not a generic template.
+      `newwww3.png` (the enhanced summary; `newwww2.png` is the same page mid-
+      generation, "hang tight" state, superseded by `newwww3.png`).
+- [x] Action items — showed "No action items detected," which is correct given the
+      call had none; confirms the feature runs and behaves correctly on empty
+      input rather than being a bug or missing feature. `newwww2.png`/`newwww3.png`.
+
 ## Still needs a real, hands-on pass — this has to be you, not the agent
-- [ ] Signup flow (free plan)
 - [ ] Calendar connect
-- [ ] Notetaker joins a real Zoom/Meet/Teams call (a 2-minute call with yourself is
-      enough)
 - [ ] Playback vs. transcript — do they scrub in sync?
-- [ ] AI summary — read it, switch templates if available
+- [ ] Summary template-switching
 - [ ] Highlight a moment mid-call — where does it land afterward?
 - [ ] Search across meetings — titles, transcript text, or both?
 - [ ] Share a clip with someone who wasn't on the call — do they need an account?
