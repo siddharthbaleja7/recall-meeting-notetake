@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ActionItem, Meeting, TranscriptLine } from "@/lib/seed-data";
 import { speakerColor, speakerInitials } from "@/lib/speaker-colors";
 
@@ -12,6 +12,21 @@ const formatDayLabel = (iso: string) =>
   new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(iso));
 const formatTime = (iso: string) => new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(iso));
 const formatDuration = (minutes: number) => (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`);
+
+// Platform never changes mid-session, so there's nothing to subscribe to —
+// this only exists to give useSyncExternalStore a server snapshot ("false",
+// matching SSR's ASCII-safe default) distinct from the client snapshot,
+// which is the sanctioned way to read a browser-only value without a
+// hydration mismatch or an effect-based setState.
+function subscribeNever() {
+  return () => {};
+}
+function getIsMacSnapshot() {
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+}
+function getIsMacServerSnapshot() {
+  return false;
+}
 
 function summaryForTemplate(meeting: Meeting, template: SummaryTemplate) {
   if (template === "general") return meeting.overview;
@@ -73,6 +88,12 @@ export default function Home() {
   const [commandQuery, setCommandQuery] = useState("");
   const [askQuery, setAskQuery] = useState("");
   const [askResult, setAskResult] = useState<{ text: string; matches: TranscriptLine[] } | null>(null);
+  // Default to the ASCII-safe label (matches SSR output, avoids a hydration
+  // mismatch) and only switch to the ⌘ glyph once confirmed on a Mac — the
+  // glyph otherwise silently falls back to a mangled tofu/asterisk-looking
+  // character in some font stacks on other platforms.
+  const isMac = useSyncExternalStore(subscribeNever, getIsMacSnapshot, getIsMacServerSnapshot);
+  const shortcutLabel = isMac ? "⌘K" : "Ctrl+K";
   const commandInputRef = useRef<HTMLInputElement>(null);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -240,7 +261,7 @@ export default function Home() {
         <div className="feed-brand"><span className="brand-mark">R</span><span>Recall</span></div>
         <div className="feed-topbar-actions">
           <button className="feed-search-trigger" onClick={() => setCommandOpen(true)}>
-            <span aria-hidden="true">⌕</span> Search meetings <kbd>⌘K</kbd>
+            Search <kbd>{shortcutLabel}</kbd>
           </button>
           <a className="feed-icon-button" href="/calendar" aria-label="Connect a calendar">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -283,15 +304,18 @@ export default function Home() {
                   >
                     <button className="feed-card-summary" onClick={() => openMeeting(meeting.id)} aria-expanded={isExpanded}>
                       <div className="feed-card-heading">
-                        <span className="feed-card-type">{meeting.type}</span>
                         <h3>{meeting.title}</h3>
                         <p className="feed-card-meta">
-                          {formatTime(meeting.date)} <i /> {formatDuration(meeting.durationMin)} <i /> {meeting.participants.length} people
+                          {meeting.type} call, {formatTime(meeting.date)} — {formatDuration(meeting.durationMin)}, {meeting.participants.length} people
                         </p>
                       </div>
                       <div className="feed-card-side">
-                        {openCount > 0 && <span className="feed-attention-badge">{openCount} open</span>}
-                        <span className="feed-chevron" aria-hidden="true">{isExpanded ? "▾" : "▸"}</span>
+                        {openCount > 0 && <span className="feed-attention"><i /> {openCount} open</span>}
+                        {/* A downward-then-flipped disclosure caret — "reveals below," not
+                            a rightward arrow, which reads as "go to another page." */}
+                        <svg className={`feed-chevron ${isExpanded ? "expanded" : ""}`} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
                       </div>
                     </button>
 
@@ -303,7 +327,7 @@ export default function Home() {
 
                         <section className="feed-section">
                           <div className="feed-section-heading">
-                            <div className="feed-source-label"><span className="feed-spark">✦</span> AI summary</div>
+                            <div className="feed-source-label">AI summary</div>
                             <label className="feed-template-control">
                               <span>Format</span>
                               <select value={template} onChange={(event) => setTemplate(event.target.value as SummaryTemplate)} aria-label="Summary format">
@@ -434,7 +458,6 @@ export default function Home() {
         <div className="feed-command-overlay" role="dialog" aria-modal="true" aria-label="Search meetings" onClick={() => setCommandOpen(false)}>
           <div className="feed-command-panel" onClick={(event) => event.stopPropagation()}>
             <label className="feed-command-input-row">
-              <span aria-hidden="true">⌕</span>
               <input
                 ref={commandInputRef}
                 value={commandQuery}
@@ -451,12 +474,11 @@ export default function Home() {
               )}
               {commandResults.map(({ meeting, excerpt }) => (
                 <button className="feed-command-result" key={meeting.id} onClick={() => goToMeeting(meeting.id)}>
-                  <span className="feed-card-type">{meeting.type}</span>
                   <strong>{meeting.title}</strong>
                   {excerpt ? (
-                    <span className="feed-command-excerpt">@ {excerpt.timestamp} {excerpt.speaker}: “{excerpt.text}”</span>
+                    <span className="feed-command-excerpt">{excerpt.speaker}, {excerpt.timestamp}: “{excerpt.text}”</span>
                   ) : (
-                    <span className="feed-command-excerpt">{formatDayLabel(meeting.date)}</span>
+                    <span className="feed-command-excerpt">{meeting.type} call — {formatDayLabel(meeting.date)}</span>
                   )}
                 </button>
               ))}
