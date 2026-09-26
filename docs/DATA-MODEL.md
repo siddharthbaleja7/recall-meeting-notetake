@@ -45,3 +45,14 @@ type SummaryTemplate = "general" | "sales" | "standup";
 
 Keep this in a single typed module (e.g. `lib/seed-data.ts`) rather than scattering
 mock data across components — it should be trivial to swap for a real API/DB later.
+
+## Implementation note
+
+This shape is now backed by a real database, not an in-memory module. `prisma/schema.prisma`
+defines `Meeting` / `TranscriptLine` / `ActionItem` as Postgres tables (hosted on Neon),
+`prisma/seed.ts` seeds the same 5 meetings described above, and the API routes under
+`app/api/meetings/` read/write through Prisma. `lib/serialize-meeting.ts` maps each DB row
+back to exactly the TypeScript shapes above, so the frontend consumes the same types either
+way. `lib/seed-data.ts` still exports these types and the meeting data — it's what
+`prisma/seed.ts` seeds from — but the running app no longer reads meeting data from it at
+runtime; every read/write goes through the API.
