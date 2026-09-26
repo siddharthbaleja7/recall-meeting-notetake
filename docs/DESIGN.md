@@ -1,91 +1,119 @@
-# Design direction
+# Design direction (frontend redesign)
 
-## Subject, audience, job
-Subject: an AI meeting notetaker. Audience: people in back-to-back calls all day —
-sales, CS, product, ops — who need to trust the record more than they trust their own
-memory of the call. Primary job of the UI: let someone find and trust a specific
-thing that was said, fast, without re-watching an hour of video.
+This replaces the original two-pane sidebar direction below. The subject,
+audience, and job are unchanged — see "Confirmed real-product details"
+further down, still true — but the layout, interaction model, and palette
+are a genuine redesign, not a re-skin: no sidebar, no persistent docked
+panel, no separate detail route, one accent color instead of two.
 
-Design principle: **calm authority.** This is a tool you check between meetings, often
-on a small screen, half-attention. It should feel like a well-kept ledger, not a flashy
-AI demo. Confidence comes from restraint and legibility, not from AI-chrome (glowing
-gradients, sparkle icons, "✨ AI-powered" badges everywhere).
+## Layout — single-column chronological feed
+No sidebar. Meetings render as a single vertical feed, grouped by day
+("Friday, September 20"), most recent day first. Each meeting is a
+collapsed card: type, title, time · duration · participant count, and — if
+it has open action items — an accent-colored "N open" badge, the one
+"needs attention" signal on the page.
 
-## Avoid the generic-AI-app tells
-Explicitly avoid: warm cream + terracotta (#D97757-adjacent) as the "AI product"
-default; near-black + neon-green/vermilion accent; identical rounded SaaS cards with
-the same soft grey shadow on everything; tracked-out ALL-CAPS eyebrow labels above
-every heading; middle-dot-joined meta strings as a crutch; a monospace face for every
-small data label; a "→" tacked onto every button/link.
+Clicking a card expands it **in place**. There is no separate detail
+route — summary, action items, transcript, and highlighting all render
+inline inside the expanded card, stacked in that order, so nothing
+requires a navigation. Only one card is expanded at a time (an accordion,
+not a stack of always-open panels), which keeps the feed scannable on a
+100+ line transcript.
 
-## Color
-- `--bg` #FAFAF8 (soft paper, not stark white)
-- `--surface` #F1EFE8 (card/panel fill)
-- `--border` #DDD8CD
-- `--ink` #14171C / `--ink-soft` #5B5F66
-- `--accent` #0F5C57 (deep teal — primary actions, active states, links)
-- `--accent-soft` #DCEAE8 (active-item background)
-- `--flag` #C9832B (amber — used *only* for highlighted transcript moments, so it
-  stays meaningful and never competes with the teal accent)
-- `--flag-soft` #F7E6CE
+    +----------------------------------------------------+
+    | Recall                    [ ⌕ Search meetings ⌘K ]  |
+    |------------------------------------------------------|
+    | TODAY                                                |
+    | [Sales] Meeting title           10:00 · 46m · 4 people ▸ |
+    |                                                       |
+    | YESTERDAY                                            |
+    | [Internal] Weekly operating review  9:00 · 61m · 8 people  2 open ▾ |
+    |   AI SUMMARY                              Format [General ▾] |
+    |   overview paragraph...                              |
+    |   Action items                                       |
+    |   [ ] task — assignee  @18:45                        |
+    |   Transcript                          [Highlights (2)]|
+    |   00:00  Maya Chen   "..."                        ☆   |
+    |   ...                                                |
+    |   Ask about this meeting                             |
+    |   [ type a question___________ ] [Ask]               |
+    +----------------------------------------------------+
 
-Dark mode: same relationships, inverted — don't just invert lightness on the accent,
-keep the teal legible against a near-black `#14171A` background (lighten it, don't
-just reuse the light-mode hex).
+On mobile this is already the natural shape — no separate mobile layout
+needed, just tighter padding and a hidden search-trigger label.
+
+## Search — command overlay, not a docked box
+Global search is **Cmd+K** or **"/"**, opening a centered command-palette
+overlay (`Esc` or a click outside closes it). It matches meeting titles,
+overview text, and transcript content; a transcript match shows the
+matching line as an excerpt (speaker, timestamp, quote) so you can tell
+*why* a meeting matched before opening it. Choosing a result closes the
+overlay, expands that meeting in the feed, and scrolls to it. There is no
+persistent search box in the layout — it only exists when summoned.
+
+## Ask about this meeting — contextual, not a docked AI panel
+Each expanded card has its own "Ask about this meeting" input, scoped to
+that meeting only. This is **not** wired to a real model yet (P1, optional
+per `docs/MVP.md`) — it's a keyword-overlap search over that meeting's own
+transcript, and its own output says so implicitly by showing you the
+matching transcript lines it found rather than pretending to converse.
+Same honesty principle as the calendar-connect stub: look purposeful,
+never misrepresent what's actually running. A real version would wire
+this input to the Anthropic API, scoped to this meeting's transcript.
+
+## Color — monochrome + exactly one accent
+Collapsed the old two-color system (teal primary + amber flag) into a
+single accent. Everything else is grayscale.
+
+- `--bg` / `--surface` / `--panel` / `--border` — near-black through
+  off-white grays (theme-dependent, see below).
+- `--ink` — primary text; `--muted` — secondary text, all at reduced
+  opacity rather than a separate hex, so light/dark stay proportionate.
+- One accent (`--teal`/`--amber` variable names kept for backward
+  compatibility with `/share` and `/calendar`, both now resolving to the
+  *same* color) — reserved for **things needing attention only**: an open
+  action-item count badge, a highlighted transcript line, the star/flag
+  icon itself, and the "Ask" submit button. It never appears as decoration
+  or as a second "brand" color.
+- Dark is the default theme; light inverts the relationships rather than
+  just flipping lightness — the accent is deliberately darker/more burnt
+  in light mode and lighter/warmer in dark mode so it stays legible
+  against both backgrounds (same principle as the old teal, kept from the
+  original direction).
+
+Avoid the generic-AI-app tells (still true): no warm cream + terracotta
+default, no near-black + neon accent, no identical soft-shadowed cards,
+no tracked-out ALL-CAPS eyebrows on everything, no "✨ AI-powered" badges.
 
 ## Type
-Two families, clearly distinct roles:
-- **Fraunces** (serif, optical sizing) for the product name and page/section headings
-  — this is the one place personality shows.
-- **Inter** for everything else — meeting titles, transcript text, UI chrome, action
-  items. This is dense, data-heavy content; it needs a workhorse sans, not character.
-
-Line length under 80 characters for summary/body text. No all-caps labels; the one
-small-caps-style label allowed is the literal "AI SUMMARY" tag, and only because it's
-functioning as a content-source indicator, not decoration.
-
-## Layout
-Two-pane, fixed sidebar + scrolling detail — the email-client / Superhuman shape
-(genuinely appropriate here: Fathom is now part of Superhuman). Left-aligned
-throughout; this is a working tool, not a marketing page, so nothing should be
-center-aligned or hero-styled.
-
-    +----------------+----------------------------------+
-    | Recall         | Meeting title                     |
-    | [search]       | date · duration · people           |
-    |----------------| [Summary] [Transcript]            |
-    | > meeting A    |----------------------------------|
-    |   meeting B    | AI SUMMARY                         |
-    |   meeting C    | overview paragraph...              |
-    |   ...          |                                    |
-    |                | Action items                       |
-    |                | [ ] task — assignee                |
-    +----------------+----------------------------------+
-
-On mobile, the sidebar becomes a full-screen list that pushes to a detail view (not a
-cramped two-column layout at 375px).
-
-## Confirmed real-product details (from /recon)
-- Action items are more than a checklist: each carries a **timestamp back into the
-  call** (e.g. `@ 4:38`) alongside the assignee. Make the timestamp clickable — it
-  should jump the transcript view to that line. This is a small, cheap, high-value
-  detail worth keeping.
-- The "Ask [product]" AI feature is a **persistent docked side panel**, not a
-  separate page — it has a scope dropdown (e.g. "All calls" vs one call) and stays
-  visible while browsing. If you build P1's AI-chat-over-meetings feature, dock it
-  the same way rather than routing it to its own screen.
-- A live call's participant grid includes a bot tile labeled `"[Name]'s Fathom Bot"`
-  sitting among the human participants — worth one static illustrative screenshot
-  somewhere (e.g. an empty/"how it works" state) even though live capture itself is
-  stubbed.
+Unchanged: **Fraunces-style serif** (Georgia as the available stand-in) for
+the product name and section headings; **Inter-style sans** (Arial as the
+available stand-in) for everything else — meeting titles, transcript text,
+UI chrome. Line length under ~70 characters for the overview paragraph.
 
 ## Motion
-One deliberate moment only: the transition when a highlight is toggled on a transcript
-line (a quick background-color fade-in, not a bounce or slide). No hover-lift on every
-list item, no staggered fade-up on page load — those are the generic tells.
+Unchanged: one deliberate moment — the background-color fade when a
+transcript line's highlight is toggled. No hover-lift, no staggered
+fade-up on load. `prefers-reduced-motion` disables all transitions.
 
 ## Writing
-Buttons say what happens: "Copy share link," not "Share." Empty states are
-instructions, not mood: an empty search result says what to try next, not just "no
-results." The AI summary tag is a source label, not a sales pitch — no exclamation
-points, no "your AI assistant has generated..." framing.
+Unchanged: buttons say what happens ("Copy share link," not "Share").
+Empty states are instructions: the command overlay's empty state says
+"start typing a title, topic, or something someone said," not "no
+results." "AI summary" and "Ask" stay source labels, not sales pitches.
+
+## `/share/[id]` and `/calendar` — intentionally untouched
+Both routes keep their original structure exactly as built in the first
+frontend phase — only the underlying color tokens changed (to the new
+monochrome + one-accent scheme, automatically, since they read the same
+CSS variables). `/share/[id]` is still an unauthenticated, two-column
+summary+transcript view for someone who wasn't on the call; `/calendar`
+is still the explicit three-step, clearly-stubbed connect flow.
+
+## Confirmed real-product details (from `/recon`, still true)
+- Action items carry a timestamp back into the call (`@ 4:38`); clicking
+  it scrolls the transcript to that line. Kept, now scrolling within the
+  expanded card's own transcript section instead of switching a tab.
+- A live call's participant grid includes a bot tile labeled `"[Name]'s
+  Fathom Bot"` — still worth an illustrative screenshot in an empty/
+  "how it works" state if that gets built later.
