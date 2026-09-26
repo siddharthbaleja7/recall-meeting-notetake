@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum MeetingType {
+  Sales
+  Internal
+  OneOnOne       @map("1:1")
+  CustomerSuccess @map("Customer Success")
+}
+
+model Meeting {
+  id          String        @id
+  title       String
+  date        DateTime
+  durationMin Int
+  type        MeetingType
+  participants String[]
+  overview    String        @db.Text
+  actionItems ActionItem[]
+  transcript  TranscriptLine[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model TranscriptLine {
+  id          String   @id
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  timestamp   String
+  speaker     String
+  text        String   @db.Text
+  highlighted Boolean  @default(false)
+  order       Int
+
+  @@index([meetingId])
+}
+
+model ActionItem {
+  id        String   @id
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  assignee  String
+  done      Boolean  @default(false)
+  timestamp String?
+  order     Int
+
+  @@index([meetingId])
+}

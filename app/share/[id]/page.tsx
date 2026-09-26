@@ -1,16 +1,27 @@
 import { notFound } from "next/navigation";
-import { meetings } from "@/lib/seed-data";
+import { prisma } from "@/lib/prisma";
+import { serializeMeeting } from "@/lib/serialize-meeting";
 import { speakerColor, speakerInitials } from "@/lib/speaker-colors";
 
 // No auth check by design: this route is the P1 "share a call with someone
 // who wasn't on it" view from the brief, so it must render for a signed-out
-// visitor. It only ever reads the seeded meeting by id — no session,
-// cookie, or client-only state is involved, so there is nothing that could
-// leak between viewers.
+// visitor. It only ever reads one meeting by id — no session, cookie, or
+// client-only state is involved, so there is nothing that could leak
+// between viewers.
+//
+// This is a server component, so it queries the database directly via
+// Prisma rather than round-tripping through /api/meetings/[id] over HTTP —
+// same data source as the API route (no static seed-data import), just
+// without an unnecessary self-fetch. The client-rendered main app in
+// app/page.tsx fetches through the API since it runs in the browser.
 export default async function ShareMeeting({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const meeting = meetings.find((item) => item.id === id);
-  if (!meeting) notFound();
+  const record = await prisma.meeting.findUnique({
+    where: { id },
+    include: { transcript: true, actionItems: true },
+  });
+  if (!record) notFound();
+  const meeting = serializeMeeting(record);
 
   return (
     <main className="share-page theme-light">
